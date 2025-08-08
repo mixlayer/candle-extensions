@@ -108,12 +108,11 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 [[package]]
 name = "candle-core"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9f51e2ecf6efe9737af8f993433c839f956d2b6ed4fd2dd4a7c6d8b0fa667ff"
 dependencies = [
  "byteorder",
  "candle-kernels",
- "cudarc",
+ "cudarc 0.17.1",
+ "float8",
  "gemm 0.17.1",
  "half",
  "memmap2",
@@ -135,7 +134,8 @@ name = "candle-cublaslt"
 version = "0.0.1"
 dependencies = [
  "candle-core",
- "cudarc",
+ "cudarc 0.17.1",
+ "float8",
  "half",
 ]
 
@@ -154,8 +154,6 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fcd989c2143aa754370b5bfee309e35fbd259e83d9ecf7a73d23d8508430775"
 dependencies = [
  "bindgen_cuda",
 ]
@@ -174,8 +172,6 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1980d53280c8f9e2c6cbe1785855d7ff8010208b46e21252b978badf13ad69d"
 dependencies = [
  "candle-core",
  "half",
@@ -254,6 +250,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cudarc"
+version = "0.17.1"
+dependencies = [
+ "float8",
+ "half",
+ "libloading",
+]
+
+[[package]]
 name = "derive_arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -317,6 +322,19 @@ name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+
+[[package]]
+name = "float8"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f498aec3b227cd892ce18967f4033d9d397d28a80a7ab67e9f6b0176a79654e"
+dependencies = [
+ "cudarc 0.16.6",
+ "half",
+ "num-traits",
+ "rand",
+ "rand_distr",
+]
 
 [[package]]
 name = "gemm"
@@ -1179,7 +1197,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14053653d0b7fa7b21015aa9a62edc8af2f60aa6f9c54e66386ecce55f22ed29"
 dependencies = [
- "cudarc",
+ "cudarc 0.16.6",
  "half",
  "serde",
  "thiserror",

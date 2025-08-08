@@ -4,7 +4,6 @@ use candle::backend::BackendStorage;
 use candle::cuda::cudarc::driver::SyncOnDrop;
 use candle::cuda_backend::cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT;
 use candle::cuda_backend::cudarc::driver::DevicePtr;
-use candle::cuda_backend::WrapErr;
 use candle::{CpuStorage, DType, Layout, Result, Shape, Storage, Tensor};
 use half::{bf16, f16};
 use std::ptr;
@@ -102,7 +101,7 @@ impl LayerNorm {
             if let Some(beta) = &self.beta {
                 // Make sure that beta is a CUDA tensor and get the underlying storage
                 let (b, b_l) = beta.storage_and_layout();
-                let (s, p, g) = match &*b {
+                let (cs, s, p, g) = match &*b {
                     Storage::Cuda(b) => {
                         let b = b.as_cuda_slice::<T>()?;
                         let b_slice = b.slice(b_l.start_offset()..);
@@ -114,7 +113,7 @@ impl LayerNorm {
                         }
 
                         let (p, g) = b_slice.device_ptr(&stream);
-                        (b_slice, p, g)
+                        (b, b_slice, p, g)
                     }
                     _ => candle::bail!("gamma must be a cuda tensor"),
                 };

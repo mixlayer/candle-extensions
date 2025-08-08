@@ -8,6 +8,8 @@ use std::sync::Arc;
 
 use cudarc::cublaslt::{CudaBlasLT, Matmul, MatmulConfig};
 
+mod fp8;
+
 #[derive(Debug, Clone)]
 pub struct CublasLt(Arc<CudaBlasLT>);
 
@@ -860,6 +862,8 @@ pub fn fused_batch_matmul(
         a.apply_op2(b, op)
     }
 }
+
+pub use fp8::fp8_scalar_fused_matmul;
 
 #[cfg(test)]
 mod tests {
