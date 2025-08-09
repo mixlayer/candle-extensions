@@ -20,7 +20,13 @@ impl CublasLt {
             _ => candle::bail!("`device` must be a `cuda` device"),
         };
 
-        let logpath = std::ffi::CString::new("log_matmul_f32_f8").unwrap();
+        let inner = CudaBlasLT::new(stream).unwrap();
+
+        Ok(Self(Arc::new(inner)))
+    }
+
+    pub fn enable_logging(&self) {
+        let logpath = std::ffi::CString::new("candle_cublaslt.log").unwrap();
 
         unsafe {
             cudarc::cublaslt::sys::cublasLtLoggerSetLevel(5)
@@ -31,10 +37,6 @@ impl CublasLt {
                 .result()
                 .unwrap();
         };
-
-        let inner = CudaBlasLT::new(stream).unwrap();
-
-        Ok(Self(Arc::new(inner)))
     }
 }
 
