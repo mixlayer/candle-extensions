@@ -121,7 +121,7 @@ dependencies = [
  "rand",
  "rand_distr",
  "rayon",
- "safetensors",
+ "safetensors 0.6.2",
  "thiserror",
  "ug",
  "ug-cuda",
@@ -177,7 +177,7 @@ dependencies = [
  "half",
  "num-traits",
  "rayon",
- "safetensors",
+ "safetensors 0.6.2",
  "serde",
  "thiserror",
 ]
@@ -1000,6 +1000,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "safetensors"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "172dd94c5a87b5c79f945c863da53b2ebc7ccef4eca24ac63cca66a41aab2178"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1184,7 +1194,7 @@ dependencies = [
  "num-traits",
  "num_cpus",
  "rayon",
- "safetensors",
+ "safetensors 0.4.5",
  "serde",
  "thiserror",
  "tracing",

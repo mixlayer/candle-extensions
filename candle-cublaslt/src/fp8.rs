@@ -26,8 +26,8 @@ pub struct FP8CublasLTMatmul {
     pub alpha: Option<f32>,
     pub beta: Option<f32>,
 
-    pub fp8_a_scale: f32,
-    pub fp8_b_scale: f32,
+    pub fp8_a_scale: Tensor,
+    pub fp8_b_scale: Tensor,
 
     pub out_dtype: DType,
 }
@@ -64,6 +64,18 @@ impl FP8CublasLTMatmul {
 
         let a = a.as_cuda_slice::<F8E4M3>()?.slice(a_l.start_offset()..);
         let b = b.as_cuda_slice::<F8E4M3>()?.slice(b_l.start_offset()..);
+
+        let (a_storage, _) = self.fp8_a_scale.storage_and_layout();
+        let a_scale_slice = match &*a_storage {
+            Storage::Cuda(storage) => storage.as_cuda_slice::<f32>()?,
+            _ => candle::bail!("`a_scale` must be a cuda tensor"),
+        };
+
+        let (b_storage, _) = self.fp8_b_scale.storage_and_layout();
+        let b_scale_slice = match &*b_storage {
+            Storage::Cuda(storage) => storage.as_cuda_slice::<f32>()?,
+            _ => candle::bail!("`b_scale` must be a cuda tensor"),
+        };
 
         let bias = if let (Some(bias), Some(bias_l)) = (bias, bias_l) {
             if bias_l.shape().dims1()? != m {
@@ -128,18 +140,13 @@ impl FP8CublasLTMatmul {
         };
 
         unsafe {
-            let stream = dev.cuda_stream();
-
-            let a_scale_dev = stream.memcpy_stod(&[self.fp8_a_scale]).unwrap();
-            let b_scale_dev = stream.memcpy_stod(&[self.fp8_b_scale]).unwrap();
-
             match self.cublaslt.fp8_matmul(
                 config,
                 &a,
-                &a_scale_dev,
+                a_scale_slice,
                 ScaleMode::Scalar32f,
                 &b,
-                &b_scale_dev,
+                b_scale_slice,
                 ScaleMode::Scalar32f,
                 &mut out,
                 bias_ptr,
@@ -210,9 +217,9 @@ impl candle::CustomOp2 for FP8CublasLTMatmul {
 #[allow(clippy::too_many_arguments)]
 pub fn fp8_scalar_fused_matmul(
     a: &Tensor,
-    a_scale: f32,
+    a_scale: &Tensor,
     b: &Tensor,
-    b_scale: f32,
+    b_scale: &Tensor,
     out: Option<&Tensor>,
     out_dtype: DType,
     alpha: Option<f32>,
@@ -227,18 +234,31 @@ pub fn fp8_scalar_fused_matmul(
         c: out.cloned(),
         alpha,
         beta,
-        fp8_a_scale: a_scale,
-        fp8_b_scale: b_scale,
+        fp8_a_scale: a_scale.clone(),
+        fp8_b_scale: b_scale.clone(),
         out_dtype,
     };
 
     if a.dtype() != DType::F8E4M3 {
-        candle::bail!("a tensor must be of type f8e4m3");
+        candle::bail!("a tensor must be of type f8e4m3, got: {:?}", b.dtype());
     }
 
     if b.dtype() != DType::F8E4M3 {
-        candle::bail!("b tensor must be of type f8e4m3");
+        candle::bail!("b tensor must be of type f8e4m3, got: {:?}", b.dtype());
     }
+
+    if a_scale.dtype() != DType::F32 {
+        candle::bail!("a scale must be an f32 scalar tensor")
+    }
+
+    if b_scale.dtype() != DType::F32 {
+        candle::bail!("b scale must be an f32 scalar tensor")
+    }
+
+    let (m, _k) = a.dims2()?;
+    let m16 = (m + 15) & !15; // next multiple of 16
+
+    let a = a.pad_with_zeros(0, 0, m16 - m)?;
 
     if let Some(out) = out {
         if out.dtype() != out_dtype {
@@ -246,7 +266,7 @@ pub fn fp8_scalar_fused_matmul(
         }
     }
 
-    if let Some(bias) = bias {
+    let y_pad = if let Some(bias) = bias {
         if bias.dtype() != out_dtype {
             candle::bail!("bias tensor must match of type out_dtype: {out_dtype:?}");
         }
@@ -255,5 +275,13 @@ pub fn fp8_scalar_fused_matmul(
         //a.apply_op3(b, bias, op)
     } else {
         a.apply_op2(b, op)
-    }
+    }?;
+
+    let y = if m % 16 == 0 {
+        y_pad
+    } else {
+        y_pad.narrow(1, 0, m)?
+    };
+
+    Ok(y)
 }
